@@ -1,0 +1,96 @@
+// A project by AS that is when gas is detected the knob of the gas cylinder knob automatically gets off.
+#include <Servo.h>  
+#include <SoftwareSerial.h>
+#define TX_PIN 2 
+#define RX_PIN 3
+#define SENSOR_PIN 8
+#define MCB_PIN 4
+#define PUMP 7                   
+Servo myservo;
+SoftwareSerial gsmserial(TX_PIN, RX_PIN);
+int value = A0;
+int buzzer = 12;
+void setup() {
+  pinMode(buzzer, OUTPUT);
+  pinMode(A0, INPUT);
+  pinMode(MCB_PIN,OUTPUT);
+  pinMode(PUMP,OUTPUT);
+  pinMode(SENSOR_PIN,INPUT);
+  digitalWrite(MCB_PIN,HIGH);
+  digitalWrite(PUMP,LOW);
+  Serial.begin(9600);  // sets the serial port to 9600 
+  gsmserial.begin(9600);
+  Serial.println("Gas sensor warming up !");
+  delay(20000);  // allow the MQ - 2 sensor to warm up
+  myservo.attach(5);
+  myservo.write(0);
+  delay(2000);
+}                                                                                   
+
+void loop() {
+  value = analogRead(A0);
+  int sensorValue=digitalRead(SENSOR_PIN);
+  if (value > 400) {
+    Serial.print("Gas is leaking !\n"); 
+    digitalWrite(buzzer, HIGH);
+    digitalWrite(PUMP, HIGH);// This is should pump high only 
+    myservo.write(180);
+    gas_sms(); //to send sms message to reciever phone
+    gas_call(); // to call to the reciever phone 
+    delay(1000);
+  }                                                                                
+  else if(sensorValue==LOW)
+  {
+    Serial.println("Fire Detected");
+    digitalWrite(MCB_PIN, LOW);       //Relay is low level triggered relay so we need to write LOW to switch on the light 
+    digitalWrite(PUMP, HIGH);  
+    fire_sms(); 
+    fire_call(); 
+    delay(500);
+  }
+  else 
+  {
+    Serial.print("Gas is not leaking !\n");
+    Serial.print("Fire Not Detected\n");
+    digitalWrite(buzzer, LOW);
+    myservo.write(0);
+    digitalWrite(MCB_PIN, HIGH);
+    digitalWrite(PUMP, LOW);  
+    delay(1000);
+  }
+  delay(2000);  //wait 2s for next reading
+} 
+void gas_call() 
+{
+  gsmserial.println("ATD+916290355405;"); 
+  delay(30000); 
+  gsmserial.println("ATH");
+}
+void fire_call() 
+{
+  gsmserial.println("ATD+916290355405;"); 
+  delay(30000); 
+  gsmserial.println("ATH");
+}
+void gas_sms() 
+{
+  gsmserial.println("AT+CMGF=1"); 
+  delay(1000);
+  gsmserial.println("AT+CMGS=\"+916290355405\"");
+  delay(1000);
+  gsmserial.print("Gas is detected and its being turned off "); 
+  delay(1000);
+  gsmserial.write(26);
+  delay(5000);
+}
+void fire_sms() 
+{
+  gsmserial.println("AT+CMGF=1"); 
+  delay(1000);
+  gsmserial.println("AT+CMGS=\"+916290355405\"");
+  delay(1000);
+  gsmserial.print("Fire is detected and sprinkler is on"); 
+  delay(1000);
+  gsmserial.write(26);
+  delay(5000);
+}
